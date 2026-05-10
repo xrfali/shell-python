@@ -16,6 +16,7 @@ class Job:
 
 
 BUILT_INS = ['echo', 'exit', 'type', 'pwd', 'complete', 'jobs', 'history', 'declare']
+
 matches = []
 commands_history = []
 last_history_idx = None
@@ -236,7 +237,10 @@ def parse_args(args):
     curr = ""
     is_escaped = False
     o_file_name = ""
-    for idx, char in enumerate(args):
+
+    idx = 0
+    while idx < len(args):
+        char = args[idx]
 
         if char == '1' and idx+2 < len(args) and args[idx+1] ==">" and args[idx+2] ==">":
             idx = idx + 3
