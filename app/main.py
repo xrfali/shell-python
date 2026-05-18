@@ -6,6 +6,7 @@ import re
 from app.shell.parser import parse_args
 from app.shell.jobs import process_jobs_command, reap_bg_jobs, next_job_number, is_bg_job, Job
 from app.shell.completer import is_registred_completer, find_executable_paths, auto_complete, BUILT_INS
+from app.shell.io_utils import write_output_to_file, redirect_write, clear_redirect
 
 from app.shell_context import ShellContext
 
@@ -58,21 +59,6 @@ def process_cd_command(arg):
             os.chdir(arg)
     except FileNotFoundError:
         print(f"cd: {arg}: No such file or directory")
-
-def write_output_to_file(file_name, output, file_mode = 'w'):
-    with open(file_name, file_mode) as file:
-        output += '\n' if output else ''
-        file.write(output)
-
-def redirect_write(w):
-    saved_stdout = os.dup(1)
-    os.dup2(w, 1)
-    return saved_stdout
-
-def clear_redirect(saved_stdout):
-    if saved_stdout is not None:
-        os.dup2(saved_stdout, 1)
-        os.close(saved_stdout)
 
 def read_history_from_file(path, ctx: ShellContext):
     commands_history = ctx.history
