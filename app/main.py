@@ -6,6 +6,8 @@ from typing import List, Dict
 from dataclasses import dataclass
 import re
 
+from app.shell_context import ShellContext
+
 @dataclass
 class Job:
     job_no: int
@@ -18,18 +20,13 @@ class Job:
 BUILT_INS = ['echo', 'exit', 'type', 'pwd', 'complete', 'jobs', 'history', 'declare']
 
 matches = []
-commands_history = []
-last_history_idx = None
 lcp = ""
-completions : Dict[str, str] = {}
-jobs: List[Job] = []
-shell_vars = {}
 
 
-def process_jobs_command(args, argl):
-    global jobs
+def process_jobs_command(args, argl, ctx: ShellContext):
 
     to_remove = []
+    jobs = ctx.jobs
 
     for idx, job in enumerate(jobs):
         marker = ' '
@@ -52,8 +49,8 @@ def process_jobs_command(args, argl):
     
     return None
 
-def reap_bg_jobs():
-    global jobs
+def reap_bg_jobs(ctx: ShellContext):
+    jobs = ctx.jobs
 
     to_remove = []
     for idx, job in enumerate(jobs):
@@ -68,8 +65,8 @@ def reap_bg_jobs():
     for idx in reversed(to_remove):
         jobs.pop(idx)
 
-def next_job_number() -> int:
-    global jobs
+def next_job_number(ctx: ShellContext) -> int:
+    jobs = ctx.jobs
 
     job_nos = [job.job_no for job in jobs]
     job_no = 1
@@ -79,18 +76,18 @@ def next_job_number() -> int:
     
     return job_no
 
-def is_registred_completer(command):
-    global completions
+def is_registred_completer(command, ctx: ShellContext):
+    completions = ctx.completions
     return completions.get(command) != None
 
-def process_complete_command(args, argl):
-    global completions
+def process_complete_command(args, argl, ctx: ShellContext):
+    completions = ctx.completions
 
     if(len(argl) == 2 and argl[0] == '-p'):
         if not completions:
             print(f"complete: {argl[-1]}: no completion specification")
         else: 
-            if is_registred_completer(argl[1]):
+            if is_registred_completer(argl[1], ctx):
                 completion = completions.get(argl[1])
                 print(f"complete -C '{completion}' {argl[1]}")
             else:
@@ -133,7 +130,6 @@ def find_longest_common_prefix(arr: List[str]):
     return first_word
 
 def get_file_or_dir_matches(text = '', dir_path = '.'):
-    global lcp
 
     res = [fn for fn in os.listdir(dir_path) if fn.startswith(text)]
     
@@ -158,7 +154,7 @@ def get_env_for_completion(input_line):
 
     return env
 
-def auto_complete(text, state):
+def auto_complete(text, state, ctx: ShellContext):
     global matches
     global lcp
 
@@ -166,8 +162,8 @@ def auto_complete(text, state):
         line = readline.get_line_buffer() 
         ll = line.split()
         if len(ll) == 1:
-            if completions.get(ll[0]):
-                cmd = completions.get(ll[0])
+            if ctx.completions.get(ll[0]):
+                cmd = ctx.completions.get(ll[0])
                 env = get_env_for_completion(line)
                 matches = run_complete_process([cmd], env)
             else:
@@ -177,10 +173,10 @@ def auto_complete(text, state):
                 else:
                     matches = get_file_or_dir_matches()
         elif len(ll) > 1:
-            if is_registred_completer(ll[0]):
+            if is_registred_completer(ll[0], ctx):
                 env = get_env_for_completion(line)
                 args = []
-                args.append(completions.get(ll[0]))
+                args.append(ctx.completions.get(ll[0]))
                 args.append(ll[0])
                 args.append(ll[-1])
                 args.append(ll[-2])
@@ -351,8 +347,8 @@ def clear_redirect(saved_stdout):
         os.dup2(saved_stdout, 1)
         os.close(saved_stdout)
 
-def read_history_from_file(path):
-    global commands_history
+def read_history_from_file(path, ctx: ShellContext):
+    commands_history = ctx.history
     try:
         with open(path, 'r') as f:
             h = f.read().splitlines()
@@ -360,36 +356,36 @@ def read_history_from_file(path):
     except FileNotFoundError:
         pass
 
-def write_history_to_file(path, op = 'w'):
-    global commands_history
-    global last_history_idx
+def write_history_to_file(path, ctx: ShellContext, op = 'w'):
+    commands_history = ctx.history
+    last_history_idx = ctx.last_history_idx
 
     cmd_h = commands_history if last_history_idx == None else commands_history[last_history_idx:]
-    last_history_idx = len(commands_history)
+    ctx.last_history_idx = len(commands_history)
     try:
         with open(path, op) as f:
             f.writelines(cmd + '\n' for cmd in cmd_h)
     except FileNotFoundError:
         pass
 
-def process_vars_with_braces(arg):
+def process_vars_with_braces(arg, ctx):
     def check_patter(match):
-        return shell_vars.get(match.group(1), '')
+        return ctx.shell_vars.get(match.group(1), '')
         
     reg = r'\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}'
     return re.sub(reg, check_patter, arg)
 
-def process_arg_for_vars(argl):
+def process_arg_for_vars(argl, ctx: ShellContext):
     new_argl = []
     for arg in argl:
         if "$" in arg and '{' in arg and '}' in arg:
-            op = process_vars_with_braces(arg)
+            op = process_vars_with_braces(arg, ctx)
             new_argl.append(op)
             continue
         
         if "$" in arg:
             idx = arg.index('$')
-            v = shell_vars.get(arg[idx+1:], '')
+            v = ctx.shell_vars.get(arg[idx+1:], '')
             op = arg[:idx] + v
             new_argl.append(op)
             continue
@@ -400,24 +396,21 @@ def process_arg_for_vars(argl):
     return new_argl
 
 def main():
+    ctx = ShellContext()
     
-    readline.set_completer(auto_complete)
-    if 'libedit' in readline.__doc__:
+    readline.set_completer(lambda text, state: auto_complete(text, state, ctx))
+    if readline.__doc__ and 'libedit' in readline.__doc__:
         readline.parse_and_bind('bind ^I rl_complete')
     else:
         readline.parse_and_bind('tab: complete')
-    
-    global jobs
-    global last_history_idx
-    global shell_vars
 
     hp = os.environ.get('HISTFILE')
     if hp:
-        read_history_from_file(hp)
-        last_history_idx = len(commands_history)
+        read_history_from_file(hp, ctx)
+        ctx.last_history_idx = len(ctx.history)
 
     while True:
-        reap_bg_jobs()
+        reap_bg_jobs(ctx)
         user_input = input("$ ")
         
         parsed_input, op_file_name, err_file_name, file_mode = parse_args(user_input.strip())
@@ -426,7 +419,7 @@ def main():
         temp_input = parsed_input
         commands = []
         
-        commands_history.append(user_input.strip())
+        ctx.history.append(user_input.strip())
 
         while(True):
             if '|' in temp_input:
@@ -441,7 +434,6 @@ def main():
                     commands.append(temp_input)
                 break
 
-
         if not commands:
             commands = [parsed_input]
 
@@ -453,7 +445,7 @@ def main():
 
             new_argl = []
             
-            argl = process_arg_for_vars(argl)
+            argl = process_arg_for_vars(argl, ctx)
 
             args = " ".join(argl)
 
@@ -464,17 +456,17 @@ def main():
             match command:
                 case 'exit':
                     if hp:
-                        write_history_to_file(hp, 'a')
+                        write_history_to_file(hp, ctx, 'a')
 
                     sys.exit(0)
                 case 'complete':
-                    process_complete_command(args, argl)
+                    process_complete_command(args, argl, ctx)
 
                 case 'declare':
                     if len(argl) == 2:
                         if argl[0] == '-p':
-                            if shell_vars.get(argl[1]):
-                                v = shell_vars.get(argl[1])
+                            if ctx.shell_vars.get(argl[1]):
+                                v = ctx.shell_vars.get(argl[1])
                                 print(f"declare -- {argl[1]}=\"{v}\"")
                             else:
                                 print(f"declare: {argl[1]}: not found")
@@ -482,28 +474,28 @@ def main():
                             v = argl[0].split('=')
                             pattern = r'^[_a-zA-Z][a-zA-Z0-9_]*$'
                             if re.match(pattern, v[0]):
-                                shell_vars[v[0]] = v[1]
+                                ctx.shell_vars[v[0]] = v[1]
                             else:
                                 print(f"declare: `{argl[0]}': not a valid identifier")
                                 
                 case 'history':
-                    if len(commands_history) > 0:
+                    if len(ctx.history) > 0:
                         idx = 0
                         if len(argl) > 0:
                             if argl[0].isdigit():
                                 n = int(argl[0])
-                                idx = len(commands_history) - n  if len(commands_history) >= n else 0
+                                idx = len(ctx.history) - n  if len(ctx.history) >= n else 0
                             
                             if len(argl) == 2:
                                 if argl[0] == '-r':
-                                    read_history_from_file(argl[1])
+                                    read_history_from_file(argl[1], ctx)
                                     break
                                 elif argl[0] == '-w' or argl[0] == '-a':
-                                    write_history_to_file(argl[1], 'w' if argl[0] == '-w' else 'a')
+                                    write_history_to_file(argl[1], ctx, 'w' if argl[0] == '-w' else 'a')
                                     break
 
-                        while idx < len(commands_history):
-                            print(f"{idx+1:>4}  {commands_history[idx]}")
+                        while idx < len(ctx.history):
+                            print(f"{idx+1:>4}  {ctx.history[idx]}")
                             idx += 1
 
                 case 'type':
@@ -539,7 +531,7 @@ def main():
                 case 'cd':
                     process_cd_command(args)  
                 case 'jobs':
-                    process_jobs_command(args, argl)
+                    process_jobs_command(args, argl, ctx)
                 case _:
                     command_path = process_executable_request(command)
                     if not command_path:
@@ -566,9 +558,9 @@ def main():
                         else: 
                             if is_bg:
                                 process = subprocess.Popen([command] + argl)
-                                job_no = next_job_number()
+                                job_no = next_job_number(ctx)
                                 job = Job(job_no, process.pid, user_input, "Running", process)
-                                jobs.append(job)
+                                ctx.jobs.append(job)
                                 print(f"{[job_no]} {process.pid}")
                             else:
                                 p = subprocess.run([command] + argl, capture_output=True, text=True)
