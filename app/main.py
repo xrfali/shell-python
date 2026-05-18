@@ -237,10 +237,7 @@ def parse_args(args):
     curr = ""
     is_escaped = False
     o_file_name = ""
-
-    idx = 0
-    while idx < len(args):
-        char = args[idx]
+    for idx, char in enumerate(args):
 
         if char == '1' and idx+2 < len(args) and args[idx+1] ==">" and args[idx+2] ==">":
             idx = idx + 3
@@ -426,7 +423,6 @@ def main():
         parsed_input, op_file_name, err_file_name, file_mode = parse_args(user_input.strip())
         parsed_input, is_bg = is_bg_job(parsed_input)
 
-        next_input = ""
         temp_input = parsed_input
         commands = []
         
