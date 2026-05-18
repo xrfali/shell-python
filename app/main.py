@@ -337,6 +337,10 @@ def main():
         user_input = input("$ ")
         
         parsed_input, op_file_name, err_file_name, file_mode = parse_args(user_input.strip())
+
+        if err_file_name:
+            write_output_to_file(err_file_name, "", file_mode)
+        
         parsed_input, is_bg = is_bg_job(parsed_input)
 
         temp_input = parsed_input
