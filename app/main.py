@@ -5,6 +5,7 @@ import sys
 from typing import List, Dict
 from dataclasses import dataclass
 import re
+from app.shell.parser import parse_args
 
 from app.shell_context import ShellContext
 
@@ -225,84 +226,6 @@ def process_executable_request(command):
         return file_paths[0]
     except:
         None
-
-def parse_args(args):
-    is_in_quotes = False
-    is_in_double_quotes = False
-    output = []
-    curr = ""
-    is_escaped = False
-    o_file_name = ""
-    for idx, char in enumerate(args):
-
-        if char == '1' and idx+2 < len(args) and args[idx+1] ==">" and args[idx+2] ==">":
-            idx = idx + 3
-            if not is_escaped and not is_in_quotes and not is_in_double_quotes: 
-                o_file_name = "".join([arg for arg in args[idx:].strip() if arg != '"'])
-                if curr: output.append(curr)
-                return output, o_file_name, None, 'a'
-        
-        elif char == '>' and idx+1 < len(args) and args[idx+1] ==">":
-            idx = idx + 2
-            if not is_escaped and not is_in_quotes and not is_in_double_quotes: 
-                o_file_name = "".join([arg for arg in args[idx:].strip() if arg != '"'])
-                if curr: output.append(curr)
-                return output, o_file_name, None, 'a'
-
-
-        if char == '2' and idx+2 < len(args) and args[idx+1] == ">" and args[idx+2] == ">":
-            idx = idx + 3
-            if not is_escaped and not is_in_quotes and not is_in_double_quotes: 
-                err_file_name = "".join([arg for arg in args[idx:].strip() if arg != '"'])
-                write_output_to_file(err_file_name, "", 'a')
-                return output, None, err_file_name, 'a'
-
-        if char == '2' and idx+1 < len(args) and args[idx +1] == ">":
-            idx = idx + 2
-            if not is_escaped and not is_in_quotes and not is_in_double_quotes: 
-                err_file_name = "".join([arg for arg in args[idx:].strip() if arg != '"'])
-                write_output_to_file(err_file_name, "")
-                return output, None, err_file_name, 'w'
-
-        if char == '1' and idx + 1 < len(args) and args[idx + 1] == ">":
-            idx = idx + 2
-            if not is_escaped and not is_in_quotes and not is_in_double_quotes:
-                o_file_name = "".join([arg for arg in args[idx:].strip() if arg != '"'])
-                if curr: output.append(curr)
-                return output, o_file_name, None, 'w'
-        elif char == ">":
-            idx = idx + 1
-            if not is_escaped and not is_in_quotes and not is_in_double_quotes:
-                o_file_name = "".join([arg for arg in args[idx:].strip() if arg != '"'])
-                if curr: output.append(curr)
-                return output, o_file_name, None, 'w'
-
-        if char == '\\' and not is_escaped and not is_in_quotes:
-            is_escaped = not is_escaped
-            continue
-        
-        if not is_escaped:
-            if char == '"' and not is_in_quotes:
-                is_in_double_quotes = not is_in_double_quotes
-                continue
-
-            if char == "'" and not is_in_double_quotes:
-                is_in_quotes = not is_in_quotes
-                continue
-
-            if char == " " and not is_in_quotes and not is_in_double_quotes:
-                if curr:
-                    output.append(curr)
-                    curr = ""
-                continue
-        else:
-            is_escaped = not is_escaped
-
-        curr += char
-    
-    output.append(curr)
-
-    return output, o_file_name, None, 'w'
 
 def process_type_command(args):
     args = args.split()
