@@ -5,87 +5,12 @@ import sys
 import re
 from app.shell.parser import parse_args
 from app.shell.jobs import process_jobs_command, reap_bg_jobs, next_job_number, is_bg_job, Job
-from app.shell.completer import is_registred_completer, find_executable_paths, auto_complete, BUILT_INS
+from app.shell.completer import auto_complete
 from app.shell.io_utils import write_output_to_file, redirect_write, clear_redirect
 from app.shell.history import read_history_from_file, write_history_to_file
 from app.shell_context import ShellContext
-
-def process_complete_command(args, argl, ctx: ShellContext):
-    completions = ctx.completions
-
-    if(len(argl) == 2 and argl[0] == '-p'):
-        if not completions:
-            print(f"complete: {argl[-1]}: no completion specification")
-        else: 
-            if is_registred_completer(argl[1], ctx):
-                completion = completions.get(argl[1])
-                print(f"complete -C '{completion}' {argl[1]}")
-            else:
-                print(f"complete: {argl[-1]}: no completion specification")
-    
-    if(len(argl) == 2 and argl[0] == "-r"):
-        completions.pop(argl[1], None)
-
-    if(len(argl) == 3 and argl[0] == "-C"):
-        if not completions.get(argl[2]):
-            completions[argl[2]] = argl[1] # e.g. (git, <PATH>)
- 
-
-def process_executable_request(command):
-    file_paths = find_executable_paths(command, tab_completion=False)
-    try:
-        return file_paths[0]
-    except:
-        None
-
-def process_type_command(args):
-    args = args.split()
-    for arg in args:
-        if arg in BUILT_INS:
-            return f"{arg} is a shell builtin"
-        else:
-            file_path = process_executable_request(arg)
-            if file_path:
-                return f"{arg} is {file_path}"
-            else:
-                print(f"{arg}: not found")
-                return None
-
-def process_cd_command(arg):
-    try:
-        if arg == "~":
-            os.chdir(os.environ['HOME'])
-        else:
-            os.chdir(arg)
-    except FileNotFoundError:
-        print(f"cd: {arg}: No such file or directory")
-
-def process_vars_with_braces(arg, ctx):
-    def check_patter(match):
-        return ctx.shell_vars.get(match.group(1), '')
-        
-    reg = r'\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}'
-    return re.sub(reg, check_patter, arg)
-
-def process_arg_for_vars(argl, ctx: ShellContext):
-    new_argl = []
-    for arg in argl:
-        if "$" in arg and '{' in arg and '}' in arg:
-            op = process_vars_with_braces(arg, ctx)
-            new_argl.append(op)
-            continue
-        
-        if "$" in arg:
-            idx = arg.index('$')
-            v = ctx.shell_vars.get(arg[idx+1:], '')
-            op = arg[:idx] + v
-            new_argl.append(op)
-            continue
-
-        new_argl.append(arg)
-    
-    new_argl = [arg for arg in new_argl if arg != '']
-    return new_argl
+from app.shell.vars import process_arg_for_vars
+from app.shell.builtins import process_complete_command, process_type_command, process_cd_command, process_executable_request
 
 def main():
     ctx = ShellContext()
