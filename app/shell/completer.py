@@ -9,9 +9,9 @@ BUILT_INS = ['echo', 'exit', 'type', 'pwd', 'complete', 'jobs', 'history', 'decl
 matches = []
 lcp = ""
 
-def is_registred_completer(command, ctx: ShellContext):
+def is_registered_completer(command, ctx: ShellContext):
     completions = ctx.completions
-    return completions.get(command) != None
+    return completions.get(command) is not None
 
 def find_executable_paths(arg, tab_completion = True):
     path_list = os.environ['PATH'].split(os.pathsep)
@@ -51,21 +51,6 @@ def run_complete_process(args, env):
         return []
 
     return []
-
-#Not used anywhere
-def find_longest_common_prefix(arr: List[str]):
-    if not arr : return ""
-    if len(arr) == 1: return arr[0]
-
-    first_word = arr[0]
-
-    for idx, char in enumerate(first_word):
-        for item in arr:
-            if idx >= len(item) or item[idx] != char:
-                return first_word[:idx]
-    
-    
-    return first_word
 
 def get_file_or_dir_matches(text = '', dir_path = '.'):
 
@@ -111,7 +96,7 @@ def auto_complete(text, state, ctx: ShellContext):
                 else:
                     matches = get_file_or_dir_matches()
         elif len(ll) > 1:
-            if is_registred_completer(ll[0], ctx):
+            if is_registered_completer(ll[0], ctx):
                 env = get_env_for_completion(line)
                 args = []
                 args.append(ctx.completions.get(ll[0]))

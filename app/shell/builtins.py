@@ -1,5 +1,5 @@
 
-from app.shell.completer import BUILT_INS, find_executable_paths, is_registred_completer
+from app.shell.completer import BUILT_INS, find_executable_paths, is_registered_completer
 from app.shell_context import ShellContext
 import os
 
@@ -10,7 +10,7 @@ def process_complete_command(args, argl, ctx: ShellContext):
         if not completions:
             print(f"complete: {argl[-1]}: no completion specification")
         else: 
-            if is_registred_completer(argl[1], ctx):
+            if is_registered_completer(argl[1], ctx):
                 completion = completions.get(argl[1])
                 print(f"complete -C '{completion}' {argl[1]}")
             else:
@@ -28,8 +28,8 @@ def process_executable_request(command):
     file_paths = find_executable_paths(command, tab_completion=False)
     try:
         return file_paths[0]
-    except:
-        None
+    except IndexError:
+        return None
 
 def process_type_command(args):
     args = args.split()
