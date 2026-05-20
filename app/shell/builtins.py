@@ -6,20 +6,20 @@ import os
 def process_complete_command(argl, ctx: ShellContext):
     completions = ctx.completions
 
-    if(len(argl) == 2 and argl[0] == '-p'):
-        if not completions:
-            print(f"complete: {argl[-1]}: no completion specification")
-        else: 
-            if is_registered_completer(argl[1], ctx):
-                completion = completions.get(argl[1])
-                print(f"complete -C '{completion}' {argl[1]}")
-            else:
+    if len(argl) == 2:
+        if argl[0] == '-p':
+            if not completions:
                 print(f"complete: {argl[-1]}: no completion specification")
-    
-    if(len(argl) == 2 and argl[0] == "-r"):
-        completions.pop(argl[1], None)
+            else: 
+                if is_registered_completer(argl[1], ctx):
+                    completion = completions.get(argl[1])
+                    print(f"complete -C '{completion}' {argl[1]}")
+                else:
+                    print(f"complete: {argl[-1]}: no completion specification")
+        elif argl[0] == "-r":
+            completions.pop(argl[1], None)
 
-    if(len(argl) == 3 and argl[0] == "-C"):
+    elif len(argl) == 3 and argl[0] == "-C":
         if not completions.get(argl[2]):
             completions[argl[2]] = argl[1] # e.g. (git, <PATH>)
  
