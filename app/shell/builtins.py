@@ -3,7 +3,7 @@ from app.shell.completer import BUILT_INS, find_executable_paths, is_registered_
 from app.shell_context import ShellContext
 import os
 
-def process_complete_command(args, argl, ctx: ShellContext):
+def process_complete_command(argl, ctx: ShellContext):
     completions = ctx.completions
 
     if(len(argl) == 2 and argl[0] == '-p'):
@@ -31,9 +31,8 @@ def process_executable_request(command):
     except IndexError:
         return None
 
-def process_type_command(args):
-    args = args.split()
-    for arg in args:
+def process_type_command(argl):
+    for arg in argl:
         if arg in BUILT_INS:
             return f"{arg} is a shell builtin"
         else:

@@ -81,7 +81,7 @@ def main():
 
                     sys.exit(0)
                 case 'complete':
-                    process_complete_command(args, argl, ctx)
+                    process_complete_command(argl, ctx)
 
                 case 'declare':
                     if len(argl) == 2:
@@ -120,7 +120,7 @@ def main():
                             idx += 1
 
                 case 'type':
-                    if (output := process_type_command(args)) is not None:
+                    if (output := process_type_command(argl)) is not None:
                         saved_stdout = None
                         if w:
                             saved_stdout = redirect_write(w)
